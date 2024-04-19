@@ -1,6 +1,6 @@
 import React from 'react';
 
-const API_KEY = '' //be careful with posting!
+const API_KEY = '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'
 
 /**
  * The most basic call to the perplexity API, 

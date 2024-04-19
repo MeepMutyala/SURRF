@@ -54,14 +54,24 @@ export async function updateTraversalPage(model, topic, last, history = []) {
   
   
       // After the promise resolves, define the page object
+      // let page = {
+      //   left: { topic: str[0] },
+      //   right: { topic: str[1] },
+      //   main: { topic: topic,
+      //           description: out},
+      //   backward: { topic: last },
+      // };
+
       let page = {
-        left: { topic: str[0] },
-        right: { topic: str[1] },
-        main: { topic: topic,
-                description: out},
-        backward: { topic: last },
+        nodes: [
+          {data: { id: 'Left', label: str[0], description: '' }},
+          {data: { id: 'Right', label: str[1], description: '' }},
+          {data: { id: 'Main', label: topic, description: out }},
+          {data: { id: 'Backward', label: last, description: '' }},
+          ],
+          edges: [
+          ],
       };
-  
       // Return the page object
       return page;
     } catch (error) {
