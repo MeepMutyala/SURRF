@@ -3,7 +3,7 @@ export const FCOSE_LAYOUT = {
     avoidOverlap: true,
     nodeDimensionsIncludeLabels: true, // Excludes the label when calculating node bounding boxes for the layout algorithm
     // Separation amount between nodes
-    nodeSeparation: 300,
+    nodeSeparation: 10000,
     // Ideal edge (non nested) length
     idealEdgeLength: 400,
     // Divisor to compute edge forces

@@ -25,7 +25,14 @@ export default function Graph({data, handleClick}) {
             cy.on('tap', 'node', (evt) => {
                 console.log(evt.target.data('label'));
             handleClick(0, evt.target.data('label'));
+            
             });
+            cy.on('data', 'node', evt => {
+                console.log('here');
+                cy.layout(FCOSE_LAYOUT).run()
+                // cy.fit()
+                // cy.center()
+            })
             cy.on('add', 'node', _evt => {
           cy.layout(FCOSE_LAYOUT).run()
           cy.fit()
