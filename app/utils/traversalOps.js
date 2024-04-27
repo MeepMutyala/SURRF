@@ -11,7 +11,7 @@
  *              - 
  *              - 
  *  */ 
-import * as easyAPI from './/easyAPI'; // Adjust the import path as necessary
+import * as easyAPI from './easyAPI'; // Adjust the import path as necessary
 
 
 
@@ -44,26 +44,32 @@ async function updateDS(){
 /**
  * return the object
  */
-export async function updateTraversalPage(model, topic, last, history = []) {
+export async function updateTraversalPage(model, cur, page) {
     try {
-      console.log(topic);
-      let out = await easyAPI.populateContent(model, topic)
+      let description = await easyAPI.populateContent(model, cur);
       // Wait for the getContentForDefaultSuggestionNodes promise to resolve
-      let str = await easyAPI.getContentForDefaultSuggestionNodes(model, topic, history);
-      console.log(str);
-  
-  
-      // After the promise resolves, define the page object
-      let page = {
-        left: { topic: str[0] },
-        right: { topic: str[1] },
-        main: { topic: topic,
-                description: out},
-        backward: { topic: last },
+      let next = await easyAPI.getContentForDefaultSuggestionNodes(model, cur, page.history);
+      console.log(next);
+
+      // Add new nodes into nodes array
+      const newNodes = [...page.nodes, { data: { id: next[0] } }, { data: { id: next[1] } }];
+      console.log(newNodes);
+
+      const newEdges = [...page.edges, 
+        { data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } },
+        { data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } },
+      ]
+
+      console.log(newEdges);
+      const newHistory = [...page.history, next[0], next[1]];
+    
+      // Return a page object
+      return {
+        nodes: newNodes,
+        edges: newEdges,
+        cur: { title: cur, description: description },
+        history: newHistory,
       };
-  
-      // Return the page object
-      return page;
     } catch (error) {
       // If an error occurs in the above await calls, it will be caught here
       console.error('An error occurred:', error);

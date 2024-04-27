@@ -1,7 +1,3 @@
-import React from 'react';
-
-const API_KEY = '' //be careful with posting!
-
 /**
  * The most basic call to the perplexity API, 
  * @param model [string] model to use
@@ -10,7 +6,8 @@ const API_KEY = '' //be careful with posting!
  */
 
 export async function perplexityCall(model, prompt) {
-  let auth = 'Bearer ' + API_KEY;
+  //console.log("API KEY: \n" + process.env.NEXT_PUBLIC_API_KEY);
+  let auth = 'Bearer ' + process.env.NEXT_PUBLIC_API_KEY;
 
   let promptCall = {
     method: 'POST',
@@ -63,6 +60,7 @@ export async function populateContent(model, topic, prompt='') {
 
     // Now responseHold is the actual response data, and you can safely access its properties
     const messageContent = responseHold.choices[0].message.content;
+    console.log(responseHold);
 
     return messageContent;
 
@@ -85,7 +83,7 @@ export async function getKMostRelatedTopics(model, k, topic, history=[], maxRela
     let str = `Return only the names of the ${maxRelations} top most related topics to this one in a list format. Do not explain anything:`
     let content = await populateContent(model, topic, str)
     content = extractTopics(content)
-    console.log(content)
+    //console.log(content)
     let filteredContent = content.filter(item => !history.includes(item)).slice(0, k);
     return filteredContent
 
