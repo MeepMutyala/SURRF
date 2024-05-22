@@ -57,7 +57,7 @@ p {
 
 #contentWrapper {
   display: flex;
-  height: 60%;
+  height: 40%;
   width: 100%;
   flex-direction: column;
   align-items: center;

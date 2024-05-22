@@ -1,14 +1,13 @@
 /**
  * The most basic call to the perplexity API, 
- * @param model [string] model to use
  * @param prompt [string] prompt for the perplexity engine
  * @returns data- json object of response
  */
 
-export async function perplexityCall(model, prompt) {
+export async function perplexityCall(prompt) {
   //console.log("API KEY: \n" + process.env.NEXT_PUBLIC_API_KEY);
   let auth = 'Bearer ' + process.env.NEXT_PUBLIC_API_KEY;
-
+  
   let promptCall = {
     method: 'POST',
     headers: {
@@ -17,7 +16,7 @@ export async function perplexityCall(model, prompt) {
       authorization: auth
     },
     body: JSON.stringify({
-      model: model, // 'mistral-7b-instruct',
+      model: process.env.NEXT_PUBLIC_MODEL,
       messages: [
         { role: 'system', content: 'Be precise and concise.' },
         { role: 'user', content: prompt } // Talk a little bit about its relation to {previous}.
@@ -45,18 +44,17 @@ export async function perplexityCall(model, prompt) {
 
 /**
  * returns the contents of a node based on it's topic
- * @param model 
  * @param topic - topic for generated response to focus on
  * @param prompt - additional optional parameter to adjust results based on a prompt
  * @returns messageContent- content populated from the given
  */
-export async function populateContent(model, topic, prompt='') {
+export async function populateContent(topic, prompt='') {
   let fullPrompt = prompt + " " + topic;
 
   try {
 
     // Wait for the Promise from perplexityCall to resolve
-    let responseHold = await perplexityCall(model, fullPrompt);
+    let responseHold = await perplexityCall(fullPrompt);
 
     // Now responseHold is the actual response data, and you can safely access its properties
     const messageContent = responseHold.choices[0].message.content;
@@ -72,16 +70,15 @@ export async function populateContent(model, topic, prompt='') {
 
 /**
  * 
- * @param model 
  * @param k 
  * @param topic 
  * @returns list format of top k most related topics
  * //josh idea for changing maxrelations= k+len(history)??
  */
-export async function getKMostRelatedTopics(model, k, topic, history=[], maxRelations=30){
+export async function getKMostRelatedTopics(k, topic, history=[], maxRelations=30){
 
     let str = `Return only the names of the ${maxRelations} top most related topics to this one in a list format. Do not explain anything:`
-    let content = await populateContent(model, topic, str)
+    let content = await populateContent(topic, str)
     content = extractTopics(content)
     //console.log(content)
     let filteredContent = content.filter(item => !history.includes(item)).slice(0, k);
@@ -91,14 +88,12 @@ export async function getKMostRelatedTopics(model, k, topic, history=[], maxRela
 
 /**
  * 
- * @param model 
- * @param k 
  * @param topic 
  * @returns list format of top k most related topics
  */
-export async function getContentForDefaultSuggestionNodes(model, topic, history=[]){
+export async function getKMostRelatedNodes(topic, history=[]){
 
-    let content = await getKMostRelatedTopics(model, 2, topic, history)
+    let content = await getKMostRelatedTopics(2, topic, history);
     return content
 
 }

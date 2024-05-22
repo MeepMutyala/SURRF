@@ -11,7 +11,7 @@
  *              - 
  *              - 
  *  */ 
-import * as easyAPI from './easyAPI'; // Adjust the import path as necessary
+import { populateContent, getKMostRelatedNodes } from './easyAPI'; // Adjust the import path as necessary
 
 
 
@@ -44,29 +44,26 @@ async function updateDS(){
 /**
  * return the object
  */
-export async function updateTraversalPage(model, cur, page) {
+export async function addGraphNode(cy, curNode, page) {
     try {
-      let description = await easyAPI.populateContent(model, cur);
-      // Wait for the getContentForDefaultSuggestionNodes promise to resolve
-      let next = await easyAPI.getContentForDefaultSuggestionNodes(model, cur, page.history);
-      console.log(next);
+      let cur = curNode.data("id");
+      let description = await populateContent(cur);
+      let next = await getKMostRelatedNodes(cur, page.history);
 
-      // Add new nodes into nodes array
-      const newNodes = [...page.nodes, { data: { id: next[0] } }, { data: { id: next[1] } }];
-      console.log(newNodes);
+      console.log(`ADJACENT NODES: \n${next[0]}\n${next[1]}`);
 
-      const newEdges = [...page.edges, 
-        { data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } },
-        { data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } },
-      ]
+      // Add new nodes to graph
+      cy.add({ group: "nodes", data: { id: next[0] } });
+      cy.add({ group: "nodes", data: { id: next[1] } });
 
-      console.log(newEdges);
+      // Add new edges to graph
+      cy.add({ group: "edges", data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } });
+      cy.add({ group: "edges", data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } });
+
       const newHistory = [...page.history, next[0], next[1]];
-    
-      // Return a page object
+
+      // Return the page object
       return {
-        nodes: newNodes,
-        edges: newEdges,
         cur: { title: cur, description: description },
         history: newHistory,
       };
@@ -76,6 +73,25 @@ export async function updateTraversalPage(model, cur, page) {
       // Handle the error as needed or rethrow it
       throw error;
     }
+  }
+
+  export function removeGraphNode(cy, curNode, page) {
+    // Remove the node
+    cy.remove(curNode);
+
+    // Remove all edges that contain the node label
+
+    const newHistory = page.history.filter(label => label !== curNode.data("id"));
+
+    // For some reason I cannot figure out the relative constraints...
+    // Remove all constraints that contain the node label
+    //const newRelativePlacement = page.relativePlacementConstraint.filter(con => con.left !== cur && con.right !== cur);
+  
+    // Return a page object
+    return {
+      cur: page.cur,
+      history: newHistory,
+    };
   }
 
 async function parseString(input) {
