@@ -1,5 +1,4 @@
 "use client";
-import "./ContentPage.css";
 
 export default function ContentPage({ topic, content }) {
   return (

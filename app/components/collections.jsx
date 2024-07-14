@@ -1,5 +1,3 @@
-import React from 'react';
-
 const Collections = ({ savedPages, onPageClick, onClearAll }) => {
   return (
     <div className="collections-container">

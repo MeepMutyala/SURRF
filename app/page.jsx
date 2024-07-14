@@ -19,8 +19,9 @@ export default function App() {
   const [page, setPage] = useState({
     nodes: [{ data: { id: "Start" } }],
     edges: [],
-    clicked: null,
-    lastClicked: null,
+    nodesGenInfo: {},
+    edgesGenInfo: {},
+    lastSelected: null,
     history: [],
     suggestions: []
   });
@@ -30,7 +31,7 @@ export default function App() {
     try {
       const pageUpdate = isNewTraversal
         ? await traversals.createTraversal(MODEL, topic)
-        : await traversals.updatePage(MODEL, topic, page);
+        : await traversals.updatePage(MODEL, topic, page, page.lastSelected);
       setPage(pageUpdate);
     } catch (error) {
       console.error("Error updating page:", error);
@@ -43,21 +44,17 @@ export default function App() {
 
   const handleSearchSubmit = useCallback((event) => {
     event.preventDefault();
-    if (searchTopic.trim() && searchTopic.trim() !== "Start") {
-      updatePageState(searchTopic, page.history.length === 0);
+    if (searchTopic.trim() !== "Start") {
+      let search = searchTopic.trim();
+      updatePageState(search, page.nodes.length === 0);
     } else {
       console.log("Please enter a valid topic to start.");
     }
-  }, [searchTopic, page.history.length, updatePageState]);
+  }, [searchTopic, page.nodes.length, updatePageState]);
 
-  const handleVertexClick = useCallback(async (topic) => {
-    try {
-      const pageUpdate = await traversals.updatePage(MODEL, topic, page);
-      setPage(pageUpdate);
-    } catch (error) {
-      console.error("Error updating page:", error);
-    }
-  }, [page]);
+  const handleVertexClick = useCallback((topic) => {
+    updatePageState(topic);
+  }, [updatePageState]);
 
   const handleToggleChange = useCallback((checked) => {
     setIsDarkMode(checked);
@@ -115,10 +112,10 @@ export default function App() {
 
       <div className="flex flex-grow relative">
         <div className="w-full pr-4 flex flex-col items-left">
-          {page.clicked && (
+          {page.lastSelected && (
             <ContentPage 
-              topic={page.clicked.nodeID} 
-              content={page.clicked.info} 
+              topic={page.lastSelected.nodeID} 
+              content={page.lastSelected.info} 
             />
           )}
           <Graph data={page} handleClick={handleVertexClick} isDarkMode={isDarkMode} />        </div>
@@ -131,6 +128,11 @@ export default function App() {
             savedPages={savedPages} 
             onPageClick={handlePageClick}
             onClearAll={clearAllPages}
+          />
+          <SavePageModal 
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleSavePageConfirm}
           />
         </div>
       </div>
