@@ -1,17 +1,17 @@
 import CytoscapeComponent from 'react-cytoscapejs';
 import cytoscape from 'cytoscape';
 import fcose from 'cytoscape-fcose';
-import { FCOSE_LAYOUT, GRAPH_STYLESHEET } from './GraphStyles';
-import "./Graph.css";
+import { FCOSE_LAYOUT, getGraphStylesheet } from './GraphStyles';
 
 cytoscape.use(fcose);
 
-export default function Graph({data, handleClick}) {
+export default function Graph({data, handleClick, isDarkMode}) {
     return (
         <CytoscapeComponent
-            id="journeyPanel"
+            id="graphStyle"
             elements={CytoscapeComponent.normalizeElements(data)} 
-            layout={FCOSE_LAYOUT} stylesheet={GRAPH_STYLESHEET} 
+            layout={FCOSE_LAYOUT} 
+            stylesheet={getGraphStylesheet(isDarkMode)} 
             cy={(cy) => { 
                 cy.unbind("tap");
                 cy.on("tap", "node", (evt) => {
@@ -23,6 +23,7 @@ export default function Graph({data, handleClick}) {
                     cy.fit();
                     cy.center();
                 })
-            }}></CytoscapeComponent>
+            }}
+        />
     );
-  }
+}

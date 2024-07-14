@@ -1,99 +1,96 @@
-/**
- * traversalOps.js
- * 
- * PURPOSE: This file contains functions that implement Traversal Operations 
- *          to traverse and update the vertices on the Traversal page
- * 
- * RETURNS: For now, the non-helper functions should return an object containing all the information
- *          that page.js can parse through and update each of it's vertices with.
- *          Object Structure:
- *              - 
- *              - 
- *              - 
- *  */ 
-import * as easyAPI from './easyAPI'; // Adjust the import path as necessary
+import * as easyAPI from './easyAPI';
 
+// Constants for class names
+const CLASS_NAMES = {
+  NODE: 'Node',
+  EDGE: 'Edge',
+  PAGE: 'Page'
+};
 
+// Function to create a new traversal
+export async function createTraversal(model, topic) {
+  const node = { data: { id: topic } };
+  console.log(topic);
+  let suggestions = await easyAPI.getTwoSuggestions(model, topic, []);
+  console.log(suggestions);
 
-
-/** HELPER
- * Saves the backwards node to the current graph traversal
- * so it is not lost
- * @returns backward node
- */
-async function saveBackwards(){
-
+  return {
+    nodes: [node],  //nodes in the graph
+    edges: [],
+    lastClicked: node,
+    history: [node],                                   // history of nodes in the graph
+    suggestions: suggestions
+  };
 }
 
-/** 
- * Save a current graph traversal to history
- * @returns nothing
- */
-async function saveToHistory(){
-    
+// Function to create a new page
+export async function pageCreate(model, topic) {
+  const initialNode = { data: { id: topic } };
+  const suggestions = await easyAPI.getTwoSuggestions(model, topic, []);
+
+  return {
+    nodes: [initialNode],
+    edges: [],
+    lastClicked: initialNode,
+    history: [initialNode],
+    suggestions: suggestions
+  };
+}
+// Function to update the page
+export async function updatePage(model, clickedTopic, currentPage) {
+  try {
+
+    // need to check if topic is already in history and if so, don't draw an edge
+
+    const options = await easyAPI.getTwoSuggestions(model, clickedTopic, currentPage.history);
+    const generatedInfo = await easyAPI.populateContent(model, clickedTopic, "tell me about this: ");
+
+    const newNode = { data: { id: clickedTopic } };
+    const updatedNodes = [...currentPage.nodes, newNode];
+    const lastNode = currentPage.lastClicked;
+
+    const newEdge = { 
+      data: { 
+        id: `${lastNode.data.id}-${clickedTopic}`, 
+        source: lastNode.data.id, 
+        target: clickedTopic 
+      } 
+    };
+    const updatedEdges = [...currentPage.edges, newEdge];
+
+    const updatedHistory = [...currentPage.history, clickedTopic];
+
+    return {
+      nodes: updatedNodes,
+      edges: updatedEdges,
+      clicked: {
+        nodeID: newNode.data.id,
+        info: generatedInfo
+      },
+      lastClicked: newNode,
+      history: updatedHistory,
+      suggestions: options
+    };
+  } catch (error) {
+    console.error('An error occurred:', error);
+    throw error;
+  }
 }
 
-/**
- * Update the current graph traversal's data structure (should be JSON)
- * @returns nothing
- */
-async function updateDS(){
-    
-}
-
-/**
- * return the object
- */
-export async function updateTraversalPage(model, cur, page) {
-    try {
-      let description = await easyAPI.populateContent(model, cur);
-      // Wait for the getContentForDefaultSuggestionNodes promise to resolve
-      let next = await easyAPI.getContentForDefaultSuggestionNodes(model, cur, page.history);
-      console.log(next);
-
-      // Add new nodes into nodes array
-      const newNodes = [...page.nodes, { data: { id: next[0] } }, { data: { id: next[1] } }];
-      console.log(newNodes);
-
-      const newEdges = [...page.edges, 
-        { data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } },
-        { data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } },
-      ]
-
-      console.log(newEdges);
-      const newHistory = [...page.history, next[0], next[1]];
-    
-      // Return a page object
-      return {
-        nodes: newNodes,
-        edges: newEdges,
-        cur: { title: cur, description: description },
-        history: newHistory,
-      };
-    } catch (error) {
-      // If an error occurs in the above await calls, it will be caught here
-      console.error('An error occurred:', error);
-      // Handle the error as needed or rethrow it
-      throw error;
-    }
+// Helper function to parse strings (unchanged)
+async function parseString(input) {
+  const pattern = /^(\d+)\.\s*(.*)$/gm;
+  const matches = [];
+  let match;
+  while ((match = pattern.exec(input)) !== null) {
+    const text = match[2].trim();
+    matches.push(text);
   }
 
-async function parseString(input) {
-    // Example of an asynchronous operation before parsing
-    //await someAsyncOperation();
+  return matches.length === 2 ? [matches[0], matches[1]] : null;
+}
 
-    // Parsing logic remains the same
-    const pattern = /^(\d+)\.\s*(.*)$/gm;
-    const matches = [];
-    let match;
-    while ((match = pattern.exec(input)) !== null) {
-        const text = match[2].trim();
-        matches.push(text);
-    }
-
-    if (matches.length === 2) {
-        return [matches[0], matches[1]];
-    } else {
-        return null;
-    }
+// Placeholder for saveToHistory function
+async function saveToHistory() {
+  // Implementation to be added
 }

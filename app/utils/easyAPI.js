@@ -6,7 +6,6 @@
  */
 
 export async function perplexityCall(model, prompt) {
-  //console.log("API KEY: \n" + process.env.NEXT_PUBLIC_API_KEY);
   let auth = 'Bearer ' + process.env.NEXT_PUBLIC_API_KEY;
 
   let promptCall = {
@@ -52,7 +51,6 @@ export async function perplexityCall(model, prompt) {
  */
 export async function populateContent(model, topic, prompt='') {
   let fullPrompt = prompt + " " + topic;
-
   try {
 
     // Wait for the Promise from perplexityCall to resolve
@@ -60,7 +58,7 @@ export async function populateContent(model, topic, prompt='') {
 
     // Now responseHold is the actual response data, and you can safely access its properties
     const messageContent = responseHold.choices[0].message.content;
-    console.log(responseHold);
+    // console.log(responseHold);
 
     return messageContent;
 
@@ -80,7 +78,9 @@ export async function populateContent(model, topic, prompt='') {
  */
 export async function getKMostRelatedTopics(model, k, topic, history=[], maxRelations=30){
 
-    let str = `Return only the names of the ${maxRelations} top most related topics to this one in a list format. Do not explain anything:`
+    let str = `Return ${maxRelations} topics randomly selected from the
+               most related topics to this prompt topic
+               in a list format. Do not explain anything:`
     let content = await populateContent(model, topic, str)
     content = extractTopics(content)
     //console.log(content)
@@ -96,7 +96,7 @@ export async function getKMostRelatedTopics(model, k, topic, history=[], maxRela
  * @param topic 
  * @returns list format of top k most related topics
  */
-export async function getContentForDefaultSuggestionNodes(model, topic, history=[]){
+export async function getTwoSuggestions(model, topic, history=[]){
 
     let content = await getKMostRelatedTopics(model, 2, topic, history)
     return content
