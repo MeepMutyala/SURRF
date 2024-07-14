@@ -46,21 +46,37 @@ async function updateDS(){
  */
 export async function addGraphNode(cy, curNode, page) {
     try {
+      // Get label of current node
       let cur = curNode.data("id");
+
       let description = await populateContent(cur);
+
+      // Retrieve top k most related topics
       let next = await getKMostRelatedNodes(cur, page.history);
 
       console.log(`ADJACENT NODES: \n${next[0]}\n${next[1]}`);
 
+      let numNewNodes = 0;
+      let i = 0;
+      let newHistory = page.history;
+      while (numNewNodes < 2 && i < next.length) {
+        if (!page.history.includes(next[i])) {
+          cy.add({ group: "nodes", data: { id: next[i] } });
+          numNewNodes += 1;
+          cy.add({ group: "edges", data: { id: `${cur}-${next[i]}`, source: cur, target: next[i]}});
+          newHistory.append(next[i]);
+        }
+        i += 1;
+      }
       // Add new nodes to graph
-      cy.add({ group: "nodes", data: { id: next[0] } });
-      cy.add({ group: "nodes", data: { id: next[1] } });
+      //cy.add({ group: "nodes", data: { id: next[0] } });
+      //cy.add({ group: "nodes", data: { id: next[1] } });
 
       // Add new edges to graph
-      cy.add({ group: "edges", data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } });
-      cy.add({ group: "edges", data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } });
+      //cy.add({ group: "edges", data: { id: `${cur}-${next[0]}`, source: cur, target: next[0] } });
+      //cy.add({ group: "edges", data: { id: `${cur}-${next[1]}`, source: cur, target: next[1] } });
 
-      const newHistory = [...page.history, next[0], next[1]];
+      //const newHistory = [...page.history, next[0], next[1]];
 
       // Return the page object
       return {

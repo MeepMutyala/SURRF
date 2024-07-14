@@ -81,8 +81,8 @@ export async function getKMostRelatedTopics(k, topic, history=[], maxRelations=3
     let content = await populateContent(topic, str)
     content = extractTopics(content)
     //console.log(content)
-    let filteredContent = content.filter(item => !history.includes(item)).slice(0, k);
-    return filteredContent
+    //let filteredContent = content.filter(item => !history.includes(item)).slice(0, k);
+    return content;
 
 }
 
@@ -93,7 +93,7 @@ export async function getKMostRelatedTopics(k, topic, history=[], maxRelations=3
  */
 export async function getKMostRelatedNodes(topic, history=[]){
 
-    let content = await getKMostRelatedTopics(2, topic, history);
+    let content = await getKMostRelatedTopics(30, topic, history);
     return content
 
 }
