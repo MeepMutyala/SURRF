@@ -64,7 +64,7 @@ export async function addGraphNode(cy, curNode, page) {
           cy.add({ group: "nodes", data: { id: next[i] } });
           numNewNodes += 1;
           cy.add({ group: "edges", data: { id: `${cur}-${next[i]}`, source: cur, target: next[i]}});
-          newHistory.append(next[i]);
+          newHistory.push(next[i]);
         }
         i += 1;
       }
