@@ -38,3 +38,16 @@ export async function edgeAnalysis(nodes, edges, history) {
     return response
     // return major relationships and topics explored in this graph
 }
+
+// export async function refactor(page){
+
+//     let pageString = JSON.stringify(page)
+
+//     let prompt = "Here is a page, with the nodes, list of edges, and the history (order of initial traversal) of a graph. Refactor the edges and history based on what connections are strongest and a graph layout like a graph neural network (so we can learn from it), keep the rest of the values the same."
+
+//     let response = await easyAPI.populateContent(MODEL, pageString, prompt)
+
+//     let newPage = JSON.parse(response)
+
+//     return newPage
+// }

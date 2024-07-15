@@ -77,9 +77,19 @@ export default function App() {
     }
   }, [searchTopic, page.history.length, updatePageState]);
 
+  const handleRefactor = useCallback(async () => {
+    try {
+      const pageUpdate = await analysisOps.refactor(page);
+      setPage(pageUpdate);
+    } catch (error) {
+      console.error("Error updating page:", error);
+    }
+  }, [page]);
+
   const handleVertexClick = useCallback(async (topic) => {
     try {
       const pageUpdate = await traversals.updatePage(MODEL, topic, page);
+      console.log(JSON.stringify(pageUpdate))
       setPage(pageUpdate);
     } catch (error) {
       console.error("Error updating page:", error);
@@ -158,7 +168,7 @@ export default function App() {
     <div id="wholePage" className="flex flex-col h-screen">
       <div id="headerWrapper" className="h-1/4 flex justify-between items-center px-4">
         <div className="w-1/2">
-          <PageHeader topic="SURRF" content="A new way to learn, built with perplexity.ai!" />
+          <PageHeader topic="SURRF" />
         </div>
         <div className="w-1/2 flex justify-end items-center">
           <form onSubmit={handleSearchSubmit} className="search-form mr-4">
@@ -194,6 +204,7 @@ export default function App() {
             <button onClick={handleGraphAnalysis}>Graph Analysis</button>
             <button onClick={handleNodeAnalysis}>Node Analysis</button>
             <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
+            <button onClick={handleRefactor}>Refactor Graph</button>
           </div>
           </div>
         <div id="sideWrapper">

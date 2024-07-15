@@ -33,6 +33,11 @@ body.dark-mode {
   }
 }
 
+a {
+  color:#85f1ff
+}
+
+
 h1 {
   font-family: "Bebas Neue", Tahoma, sans-serif;
   font-weight: 400;
