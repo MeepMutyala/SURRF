@@ -4,8 +4,8 @@ import "./ContentPage.css";
 export default function ContentPage({ topic, content }) {
   return (
     <div id="contentPage">
-      <h1>{topic}</h1>
-      <p>{content}</p>
+      <h2>{topic}</h2>
+      <p title={content}>{content}</p>
     </div>
   );
 };

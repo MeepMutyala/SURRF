@@ -1,12 +1,5 @@
 import * as easyAPI from './easyAPI';
 
-// Constants for class names
-const CLASS_NAMES = {
-  NODE: 'Node',
-  EDGE: 'Edge',
-  PAGE: 'Page'
-};
-
 // Function to create a new traversal
 export async function createTraversal(model, topic) {
   const node = { data: { id: topic } };
@@ -18,47 +11,40 @@ export async function createTraversal(model, topic) {
     nodes: [node],  //nodes in the graph
     edges: [],
     lastClicked: node,
-    history: [node],                                   // history of nodes in the graph
+    history: [topic],                                   // history of nodes in the graph
     suggestions: suggestions
   };
 }
 
-// Function to create a new page
-export async function pageCreate(model, topic) {
-  const initialNode = { data: { id: topic } };
-  const suggestions = await easyAPI.getTwoSuggestions(model, topic, []);
-
-  return {
-    nodes: [initialNode],
-    edges: [],
-    lastClicked: initialNode,
-    history: [initialNode],
-    suggestions: suggestions
-  };
-}
 // Function to update the page
 export async function updatePage(model, clickedTopic, currentPage) {
   try {
 
-    // need to check if topic is already in history and if so, don't draw an edge
-
-    const options = await easyAPI.getTwoSuggestions(model, clickedTopic, currentPage.history);
-    const generatedInfo = await easyAPI.populateContent(model, clickedTopic, "tell me about this: ");
-
-    const newNode = { data: { id: clickedTopic } };
-    const updatedNodes = [...currentPage.nodes, newNode];
     const lastNode = currentPage.lastClicked;
 
-    const newEdge = { 
-      data: { 
-        id: `${lastNode.data.id}-${clickedTopic}`, 
-        source: lastNode.data.id, 
-        target: clickedTopic 
-      } 
-    };
-    const updatedEdges = [...currentPage.edges, newEdge];
+    const options = await easyAPI.getTwoSuggestions(model, clickedTopic, currentPage.history);
 
-    const updatedHistory = [...currentPage.history, clickedTopic];
+    // if info already exists, then get from where it is, not making a request again
+    // you can implement this later. you need to run an MVP right now
+
+    const generatedInfo = await easyAPI.populateContent(model, clickedTopic, "tell me about this: ");
+    const newNode = { data: { id: clickedTopic } };
+
+    let updatedNodes = [...currentPage.nodes, newNode];
+    let updatedEdges = currentPage.edges
+    let updatedHistory = currentPage.history
+
+    if(!currentPage.history.includes(clickedTopic)){
+      let newEdge = { 
+        data: { 
+          id: `${lastNode.data.id}-${clickedTopic}`, 
+          source: lastNode.data.id, 
+          target: clickedTopic 
+        } 
+      };
+      updatedEdges = [...currentPage.edges, newEdge]
+      updatedHistory = [...currentPage.history, clickedTopic];
+    }
 
     return {
       nodes: updatedNodes,

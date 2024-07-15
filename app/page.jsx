@@ -8,14 +8,19 @@ import ToggleSwitch from './components/ToggleSwitch.jsx';
 import PageHeader from './content/pageHeader.jsx';
 import SaveSurfButton from './components/SaveSurfButton.jsx';
 import Collections from './components/Collections.jsx'; // Import the new Collections component
-import SavePageModal from './components/SavePageModal.jsx';
+import SavePageModal from './components/savePageModal.jsx';
+import * as analysisOps from './utils/analysisOps.js';
+import AnalysisPanel from './components/AnalysisPanel.jsx';
 
 const MODEL = 'mistral-7b-instruct';
 
 export default function App() {
+  const [analysisResult, setAnalysisResult] = useState({ title: '', content: '' });
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchTopic, setSearchTopic] = useState('');
+
   const [page, setPage] = useState({
     nodes: [{ data: { id: "Start" } }],
     edges: [],
@@ -24,7 +29,29 @@ export default function App() {
     history: [],
     suggestions: []
   });
+
   const [savedPages, setSavedPages] = useState([]);
+
+  const toggleDeleteMode = () => {
+    setIsDeleteMode(!isDeleteMode);
+  };
+  
+  const handleNodeDelete = useCallback((nodeId) => {
+    if (isDeleteMode) {
+      // Remove the node
+      setPage(prevPage => {
+        const newNodes = prevPage.nodes.filter(node => node.data.id !== nodeId);
+        const newEdges = prevPage.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
+        return {
+          ...prevPage,
+          nodes: newNodes,
+          edges: newEdges,
+        };
+      });
+      // Exit delete mode
+      setIsDeleteMode(false);
+    }
+  }, [isDeleteMode]);
 
   const updatePageState = useCallback(async (topic, isNewTraversal = false) => {
     try {
@@ -85,12 +112,47 @@ export default function App() {
     setPage(savedPage);
   }, []);
 
+  const handleDeletePage = useCallback((indexToDelete) => {
+    setSavedPages(prevPages => {
+      const newPages = prevPages.filter((_, index) => index !== indexToDelete);
+      localStorage.setItem('savedPages', JSON.stringify(newPages));
+      return newPages;
+    });
+  }, []);
+
   useEffect(() => {
     const savedPagesData = localStorage.getItem('savedPages');
     if (savedPagesData) {
       setSavedPages(JSON.parse(savedPagesData));
     }
   }, []);
+
+  const handleGraphAnalysis = useCallback(async () => {
+    const result = await analysisOps.graphAnalysis(
+      JSON.stringify(page.nodes),
+      JSON.stringify(page.edges),
+      JSON.stringify(page.history)
+    );
+    setAnalysisResult({ title: 'Graph Analysis', content: result });
+  }, [page]);
+
+  const handleNodeAnalysis = useCallback(async () => {
+    const result = await analysisOps.nodeAnalysis(
+      JSON.stringify(page.nodes),
+      JSON.stringify(page.edges),
+      JSON.stringify(page.history)
+    );
+    setAnalysisResult({ title: 'Node Analysis', content: result });
+  }, [page]);
+
+  const handleEdgeAnalysis = useCallback(async () => {
+    const result = await analysisOps.edgeAnalysis(
+      JSON.stringify(page.nodes),
+      JSON.stringify(page.edges),
+      JSON.stringify(page.history)
+    );
+    setAnalysisResult({ title: 'Edge Analysis', content: result });
+  }, [page]);
 
   return (
     <div id="wholePage" className="flex flex-col h-screen">
@@ -113,7 +175,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="flex flex-grow relative">
+      <div className="flex flex-grow relative overflow-hidden">
         <div className="w-full pr-4 flex flex-col items-left">
           {page.clicked && (
             <ContentPage 
@@ -121,16 +183,43 @@ export default function App() {
               content={page.clicked.info} 
             />
           )}
-          <Graph data={page} handleClick={handleVertexClick} isDarkMode={isDarkMode} />        </div>
+          <Graph 
+            data={page} 
+            handleClick={handleVertexClick} 
+            isDarkMode={isDarkMode}
+            isDeleteMode={isDeleteMode}
+            onNodeDelete={handleNodeDelete}
+          />          
+          <div className="analysis-buttons">
+            <button onClick={handleGraphAnalysis}>Graph Analysis</button>
+            <button onClick={handleNodeAnalysis}>Node Analysis</button>
+            <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
+          </div>
+          </div>
         <div id="sideWrapper">
           <SuggestionPanel 
             suggestions={page.suggestions} 
             onSuggestionClick={handleSuggestionClick} 
           />
+          <button 
+            onClick={toggleDeleteMode}
+            className={`delete-mode-button ${isDeleteMode ? 'active' : ''}`}>
+            {isDeleteMode ? 'Exit Delete Mode' : 'Enter Delete Mode'}
+          </button>
+          <AnalysisPanel 
+            title={analysisResult.title}
+            content={analysisResult.content}
+          />
           <Collections 
             savedPages={savedPages} 
             onPageClick={handlePageClick}
             onClearAll={clearAllPages}
+            onDeletePage={handleDeletePage}
+          />
+          <SavePageModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            onSave={handleSavePageConfirm} 
           />
         </div>
       </div>
