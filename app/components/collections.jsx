@@ -22,7 +22,7 @@ const Collections = ({ savedPages, onPageClick, onClearAll, onDeletePage }) => {
           >
             <FaTrash />
           </button>
-        </div>
+    </div>
       ))}
       {savedPages.length > 0 && (
         <button className="clear-all-button" onClick={onClearAll}>

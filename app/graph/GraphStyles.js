@@ -21,6 +21,7 @@ export const getGraphStylesheet = (isDarkMode) => [
       'border-color': isDarkMode ? 'white' : 'black',
       'text-wrap': 'wrap',
       'color': isDarkMode ? 'white' : 'black',
+      'float': 'right',
     },
   },
   {
@@ -29,6 +30,7 @@ export const getGraphStylesheet = (isDarkMode) => [
       'curve-style': 'bezier',
       'width': '1rem',
       'line-color': isDarkMode ? 'white' : 'black',
+      'float': 'right',
     },
   },
 ];

@@ -89,7 +89,7 @@ p {
 #headerWrapper {
   background-color: var(--panel-hex);
   display: flex;
-  height: 20%;
+  height: 25%;
   width: 100%;
   flex-direction: row;
   justify-content: space-between;
@@ -106,6 +106,7 @@ p {
 }
 
 .search-form {
+  margin: 2vh;
   display: flex;
   width: 100%;
   max-width: 400px;

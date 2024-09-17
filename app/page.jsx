@@ -20,6 +20,8 @@ export default function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchTopic, setSearchTopic] = useState('');
+  const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(false);
+
 
   const [page, setPage] = useState({
     nodes: [{ data: { id: "Start" } }],
@@ -29,6 +31,10 @@ export default function App() {
     history: [],
     suggestions: []
   });
+
+  const handleToggleAnalysisPanel = useCallback(() => {
+    setIsAnalysisPanelOpen(!isAnalysisPanelOpen);
+  }, [isAnalysisPanelOpen]);
 
   const [savedPages, setSavedPages] = useState([]);
 
@@ -166,9 +172,10 @@ export default function App() {
 
   return (
     <div id="wholePage" className="flex flex-col h-screen">
+      {!page.clicked && (
       <div id="headerWrapper" className="h-1/4 flex justify-between items-center px-4">
         <div className="w-1/2">
-          <PageHeader topic="SURRF" />
+          <PageHeader topic="Welcome to Surf!" />
         </div>
         <div className="w-1/2 flex justify-end items-center">
           <form onSubmit={handleSearchSubmit} className="search-form mr-4">
@@ -181,17 +188,29 @@ export default function App() {
             />
             <button type="submit" className="search-button">Submit</button>
           </form>
-          <SaveSurfButton onSave={handleSavePage} />
         </div>
       </div>
+      )}
 
       <div className="flex flex-grow relative overflow-hidden">
         <div className="w-full pr-4 flex flex-col items-left">
           {page.clicked && (
+            <div>
             <ContentPage 
               topic={page.clicked.nodeID} 
               content={page.clicked.info} 
             />
+            <form onSubmit={handleSearchSubmit} className="search-form mr-4">
+            <input 
+              type="text" 
+              value={searchTopic} 
+              onChange={(e) => setSearchTopic(e.target.value)} 
+              placeholder="Enter a topic" 
+              className="search-input"
+            />
+            <button type="submit" className="search-button">Submit</button>
+          </form>
+            </div>
           )}
           <Graph 
             data={page} 
@@ -201,10 +220,17 @@ export default function App() {
             onNodeDelete={handleNodeDelete}
           />          
           <div className="analysis-buttons">
-            <button onClick={handleGraphAnalysis}>Graph Analysis</button>
-            <button onClick={handleNodeAnalysis}>Node Analysis</button>
-            <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
-            <button onClick={handleRefactor}>Refactor Graph</button>
+          <button onClick={handleToggleAnalysisPanel}>
+          {isAnalysisPanelOpen ? 'Close' : 'Analysis Options'}
+          </button>
+          {isAnalysisPanelOpen && (
+            <div>
+              <button onClick={handleGraphAnalysis}>Graph Analysis</button>
+              <button onClick={handleNodeAnalysis}>Node Analysis</button>
+              <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
+              <button onClick={handleRefactor}>Refactor Graph</button>
+            </div>
+          )}
           </div>
           </div>
         <div id="sideWrapper">
@@ -221,6 +247,7 @@ export default function App() {
             title={analysisResult.title}
             content={analysisResult.content}
           />
+          
           <Collections 
             savedPages={savedPages} 
             onPageClick={handlePageClick}
@@ -232,6 +259,7 @@ export default function App() {
             onClose={() => setIsModalOpen(false)} 
             onSave={handleSavePageConfirm} 
           />
+          <SaveSurfButton onSave={handleSavePage} />
         </div>
       </div>
       <ToggleSwitch id="darkModeToggle" checked={isDarkMode} onChange={handleToggleChange} />
