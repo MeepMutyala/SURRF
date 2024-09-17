@@ -1,7 +1,3 @@
-import React from 'react';
-
-const API_KEY = '' //be careful with posting!
-
 /**
  * The most basic call to the perplexity API, 
  * @param model [string] model to use
@@ -10,7 +6,7 @@ const API_KEY = '' //be careful with posting!
  */
 
 export async function perplexityCall(model, prompt) {
-  let auth = 'Bearer ' + API_KEY;
+  let auth = 'Bearer ' + process.env.NEXT_PUBLIC_API_KEY;
 
   let promptCall = {
     method: 'POST',
@@ -55,7 +51,6 @@ export async function perplexityCall(model, prompt) {
  */
 export async function populateContent(model, topic, prompt='') {
   let fullPrompt = prompt + " " + topic;
-
   try {
 
     // Wait for the Promise from perplexityCall to resolve
@@ -63,6 +58,7 @@ export async function populateContent(model, topic, prompt='') {
 
     // Now responseHold is the actual response data, and you can safely access its properties
     const messageContent = responseHold.choices[0].message.content;
+    // console.log(responseHold);
 
     return messageContent;
 
@@ -82,10 +78,12 @@ export async function populateContent(model, topic, prompt='') {
  */
 export async function getKMostRelatedTopics(model, k, topic, history=[], maxRelations=30){
 
-    let str = `Return only the names of the ${maxRelations} top most related topics to this one in a list format. Do not explain anything:`
+    let str = `Return ${maxRelations} topics randomly selected from the
+               most related topics to this prompt topic
+               in a list format. Do not explain anything:`
     let content = await populateContent(model, topic, str)
     content = extractTopics(content)
-    console.log(content)
+    //console.log(content)
     let filteredContent = content.filter(item => !history.includes(item)).slice(0, k);
     return filteredContent
 
@@ -98,7 +96,7 @@ export async function getKMostRelatedTopics(model, k, topic, history=[], maxRela
  * @param topic 
  * @returns list format of top k most related topics
  */
-export async function getContentForDefaultSuggestionNodes(model, topic, history=[]){
+export async function getTwoSuggestions(model, topic, history=[]){
 
     let content = await getKMostRelatedTopics(model, 2, topic, history)
     return content
