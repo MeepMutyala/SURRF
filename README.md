@@ -21,7 +21,7 @@ Share organized knowledge graphs with others
 
 First things first, you'll need an API key from Perplexity to run the project. You can get one with the Pro version, or clone my repo and reconfigure the API I made for internal use (app/utils/easyAPI.js) for chatGPT or other models with APIs.
 
-Make sure you have NodeJS and NextJS installed. I haven't configured
+Make sure you have NodeJS and NextJS installed. 
 
 clone the repo, cd into the folder, install dependencies:
 ```
