@@ -16,8 +16,8 @@ export default function Graph({ data, handleClick, isDarkMode, isDeleteMode, onN
         if (cyRef.current) {
             const cy = cyRef.current;
 
-            cy.unbind("tap");
-            cy.on("tap", "node", (evt) => {
+            cy.unbind("tap");                           
+            cy.on("tap", "node", (evt) => {             // this is on node click essentially
                 const nodeId = evt.target.data("id");
                 if (isDeleteMode) {
                     onNodeDelete(nodeId);

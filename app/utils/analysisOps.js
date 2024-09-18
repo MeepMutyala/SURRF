@@ -1,4 +1,4 @@
-import * as easyAPI from './easyAPI';
+import * as easyAPI from './perplexityAPI';
 
 const MODEL = 'mistral-7b-instruct';
 

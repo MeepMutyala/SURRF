@@ -1,40 +1,40 @@
-import * as easyAPI from './easyAPI';
+import * as perplexityAPI from './perplexityAPI';
+import * as exaAPI from './exaAPI';
 
 // Function to create a new traversal
-export async function createTraversal(model, topic) {
+export async function createTraversal(topic) {
   const node = { data: { id: topic } };
   console.log(topic);
-  let suggestions = await easyAPI.getTwoSuggestions(model, topic, []);
+  let suggestions = await exaAPI.getRelatedTopics(topic, 2);
   console.log(suggestions);
 
   return {
     nodes: [node],  //nodes in the graph
     edges: [],
     lastClicked: node,
-    history: [topic],                                   // history of nodes in the graph
+    history: [topic],                         // history of nodes in the graph
     suggestions: suggestions
   };
 }
 
-// Function to update the page
-export async function updatePage(model, clickedTopic, currentPage) {
+// Function to update the page when a node is clicked
+export async function updatePage(clickedTopic, currentPage) {
   try {
+    const [content, sourcesAndLinks] = await Promise.all([
+      perplexityAPI.generateContent('mistral-7b-instruct', clickedTopic),
+      exaAPI.getSourcesAndLinks(clickedTopic)
+    ]);
 
     const lastNode = currentPage.lastClicked;
+    const suggestions = await exaAPI.getRelatedTopics(clickedTopic, 2);
 
-    const options = await easyAPI.getTwoSuggestions(model, clickedTopic, currentPage.history);
-
-    // if info already exists, then get from where it is, not making a request again
-    // you can implement this later. you need to run an MVP right now
-
-    const generatedInfo = await easyAPI.populateContent(model, clickedTopic, "tell me about this: ");
     const newNode = { data: { id: clickedTopic } };
 
     let updatedNodes = [...currentPage.nodes, newNode];
-    let updatedEdges = currentPage.edges
-    let updatedHistory = currentPage.history
+    let updatedEdges = currentPage.edges;
+    let updatedHistory = currentPage.history;
 
-    if(!currentPage.history.includes(clickedTopic)){
+    if (!currentPage.history.includes(clickedTopic)) {
       let newEdge = { 
         data: { 
           id: `${lastNode.data.id}-${clickedTopic}`, 
@@ -42,7 +42,7 @@ export async function updatePage(model, clickedTopic, currentPage) {
           target: clickedTopic 
         } 
       };
-      updatedEdges = [...currentPage.edges, newEdge]
+      updatedEdges = [...currentPage.edges, newEdge];
       updatedHistory = [...currentPage.history, clickedTopic];
     }
 
@@ -51,14 +51,15 @@ export async function updatePage(model, clickedTopic, currentPage) {
       edges: updatedEdges,
       clicked: {
         nodeID: newNode.data.id,
-        info: generatedInfo
+        info: content,
+        sources: sourcesAndLinks
       },
       lastClicked: newNode,
       history: updatedHistory,
-      suggestions: options
+      suggestions: suggestions
     };
   } catch (error) {
-    console.error('An error occurred:', error);
+    console.error('Error updating graph:', error);
     throw error;
   }
 }

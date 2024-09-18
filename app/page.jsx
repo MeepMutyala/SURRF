@@ -11,102 +11,165 @@ import Collections from './components/Collections.jsx'; // Import the new Collec
 import SavePageModal from './components/savePageModal.jsx';
 import * as analysisOps from './utils/analysisOps.js';
 import AnalysisPanel from './components/AnalysisPanel.jsx';
+import Tab from './components/Tab';
+import { generateContent } from './utils/perplexityAPI';
+import { getRelatedTopics, getSourcesAndLinks } from './utils/exaAPI';
+import { setCache, getCache } from './utils/tabCache';
 
 const MODEL = 'mistral-7b-instruct';
 
 export default function App() {
-  const [analysisResult, setAnalysisResult] = useState({ title: '', content: '' });
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const [searchTopic, setSearchTopic] = useState('');
-  const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(false);
 
+  // consts
+  //
+    const [analysisResult, setAnalysisResult] = useState({ title: '', content: '' });
+    const [isDeleteMode, setIsDeleteMode] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isDarkMode, setIsDarkMode] = useState(false);
+    const [searchTopic, setSearchTopic] = useState('');
+    const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(false);
+    const [tabs, setTabs] = useState([]);
 
-  const [page, setPage] = useState({
-    nodes: [{ data: { id: "Start" } }],
-    edges: [],
-    clicked: null,
-    lastClicked: null,
-    history: [],
-    suggestions: []
-  });
+    
+  // Page Setter- refresh the whole GRAPH using a new graph object, 
+  //
+    const [page, setPage] = useState({
+      nodes: [{ data: { id: "Start" } }],
+      edges: [],
+      clicked: null,
+      lastClicked: null,
+      history: [],
+      suggestions: []
+    });
+    const [savedPages, setSavedPages] = useState([]);
 
-  const handleToggleAnalysisPanel = useCallback(() => {
-    setIsAnalysisPanelOpen(!isAnalysisPanelOpen);
-  }, [isAnalysisPanelOpen]);
-
-  const [savedPages, setSavedPages] = useState([]);
-
-  const toggleDeleteMode = () => {
-    setIsDeleteMode(!isDeleteMode);
+  // Tab Setter and logic- explanatory
+  //
+  const openTab = (title, content) => {
+    setTabs((prevTabs) => {
+      const existingTabIndex = prevTabs.findIndex(tab => tab.title === title);
+      if (existingTabIndex !== -1) {
+        // If the tab already exists, move it to the end of the array
+        const updatedTabs = prevTabs.filter((_, index) => index !== existingTabIndex);
+        return [...updatedTabs, { title, content }];
+      }
+      // If we have 3 tabs, remove the oldest one
+      if (prevTabs.length >= 3) {
+        return [...prevTabs.slice(1), { title, content }];
+      }
+      return [...prevTabs, { title, content }];
+    });
   };
-  
-  const handleNodeDelete = useCallback((nodeId) => {
-    if (isDeleteMode) {
-      // Remove the node
-      setPage(prevPage => {
-        const newNodes = prevPage.nodes.filter(node => node.data.id !== nodeId);
-        const newEdges = prevPage.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
-        return {
-          ...prevPage,
-          nodes: newNodes,
-          edges: newEdges,
+
+  const closeTab = (index) => {
+    setTabs((prevTabs) => prevTabs.filter((_, i) => i !== index));
+  };
+
+  // Page update- update the whole page state (use this often) 
+  //
+    const updatePageState = useCallback(async (topic, isNewTraversal = false) => {
+      try {
+        const pageUpdate = isNewTraversal
+          ? await traversals.createTraversal(topic)
+          : await traversals.updatePage(topic, page);
+        setPage(pageUpdate);
+      } catch (error) {
+        console.error("Error updating page:", error);
+      }
+    }, [page]);
+
+
+  // Analysis Panel Toggler Function
+  //
+    const handleToggleAnalysisPanel = useCallback(() => {
+      setIsAnalysisPanelOpen(!isAnalysisPanelOpen);
+    }, [isAnalysisPanelOpen]);
+
+
+  // Delete Mode Toggler Function && Logic Function
+  //
+    const toggleDeleteMode = () => {
+      setIsDeleteMode(!isDeleteMode);
+    };
+    
+    const handleNodeDelete = useCallback((nodeId) => {
+      if (isDeleteMode) {
+        // Remove the node
+        setPage(prevPage => {
+          const newNodes = prevPage.nodes.filter(node => node.data.id !== nodeId);
+          const newEdges = prevPage.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
+          return {
+            ...prevPage,
+            nodes: newNodes,
+            edges: newEdges,
+          };
+        });
+        // Remove the corresponding tab
+        setTabs(prevTabs => prevTabs.filter(tab => tab.title !== nodeId));
+        // Exit delete mode
+        setIsDeleteMode(false);
+      }
+    }, [isDeleteMode]);
+
+  // Search/Surf/Query/Explore/Research (keywords for ctrl-f) functionality
+  //
+    const handleSuggestionClick = useCallback((suggestion) => {
+      updatePageState(suggestion);
+    }, [updatePageState]);
+
+    const handleSearchSubmit = useCallback((event) => {
+      event.preventDefault();
+      if (searchTopic.trim() && searchTopic.trim() !== "Start") {
+        updatePageState(searchTopic, page.history.length === 0);
+      } else {
+        console.log("Please enter a valid topic to start.");
+      }
+    }, [searchTopic, page.history.length, updatePageState]);
+
+    // on vertex click
+    const handleVertexClick = useCallback(async (topic) => {
+      try {
+        const cachedContent = getCache(topic);
+        if (cachedContent) {
+          openTab(topic, cachedContent);
+          return;
+        }
+    
+        const [content, sourcesAndLinks] = await Promise.all([
+          generateContent(MODEL, topic),
+          getSourcesAndLinks(topic)
+        ]);
+    
+        const tabContent = {
+          text: content,
+          sources: sourcesAndLinks
         };
-      });
-      // Exit delete mode
-      setIsDeleteMode(false);
-    }
-  }, [isDeleteMode]);
+    
+        setCache(topic, tabContent);
+        openTab(topic, tabContent);
+      } catch (error) {
+        console.error("Error updating page:", error);
+      }
+    }, []);
 
-  const updatePageState = useCallback(async (topic, isNewTraversal = false) => {
-    try {
-      const pageUpdate = isNewTraversal
-        ? await traversals.createTraversal(MODEL, topic)
-        : await traversals.updatePage(MODEL, topic, page);
-      setPage(pageUpdate);
-    } catch (error) {
-      console.error("Error updating page:", error);
-    }
-  }, [page]);
+  // to be implemented
+  // const handleRefactor = useCallback(async () => {
+  //   try {
+  //     const pageUpdate = await analysisOps.refactor(page);
+  //     setPage(pageUpdate);
+  //   } catch (error) {
+  //     console.error("Error updating page:", error);
+  //   }
+  // }, [page]);
 
-  const handleSuggestionClick = useCallback((suggestion) => {
-    updatePageState(suggestion);
-  }, [updatePageState]);
+  // dark mode lol
+  //
+    const handleToggleChange = useCallback((checked) => {
+      setIsDarkMode(checked);
+      document.body.classList.toggle('dark-mode', checked);
+    }, []);
 
-  const handleSearchSubmit = useCallback((event) => {
-    event.preventDefault();
-    if (searchTopic.trim() && searchTopic.trim() !== "Start") {
-      updatePageState(searchTopic, page.history.length === 0);
-    } else {
-      console.log("Please enter a valid topic to start.");
-    }
-  }, [searchTopic, page.history.length, updatePageState]);
-
-  const handleRefactor = useCallback(async () => {
-    try {
-      const pageUpdate = await analysisOps.refactor(page);
-      setPage(pageUpdate);
-    } catch (error) {
-      console.error("Error updating page:", error);
-    }
-  }, [page]);
-
-  const handleVertexClick = useCallback(async (topic) => {
-    try {
-      const pageUpdate = await traversals.updatePage(MODEL, topic, page);
-      console.log(JSON.stringify(pageUpdate))
-      setPage(pageUpdate);
-    } catch (error) {
-      console.error("Error updating page:", error);
-    }
-  }, [page]);
-
-  const handleToggleChange = useCallback((checked) => {
-    setIsDarkMode(checked);
-    document.body.classList.toggle('dark-mode', checked);
-  }, []);
-
+  //
   const clearAllPages = useCallback(() => {
     setSavedPages([]);
     localStorage.removeItem('savedPages');
@@ -219,6 +282,17 @@ export default function App() {
             isDeleteMode={isDeleteMode}
             onNodeDelete={handleNodeDelete}
           />          
+          <div className="tabs-container">
+            {tabs.map((tab, index) => (
+              <Tab
+                key={index}
+                title={tab.title}
+                content={tab.content}
+                onClose={() => closeTab(index)}
+              />
+            ))}
+          </div>
+          
           <div className="analysis-buttons">
           <button onClick={handleToggleAnalysisPanel}>
           {isAnalysisPanelOpen ? 'Close' : 'Analysis Options'}
@@ -228,7 +302,7 @@ export default function App() {
               <button onClick={handleGraphAnalysis}>Graph Analysis</button>
               <button onClick={handleNodeAnalysis}>Node Analysis</button>
               <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
-              <button onClick={handleRefactor}>Refactor Graph</button>
+               <button>Refactor Graph</button> {/*onClick={handleRefactor}*/}
             </div>
           )}
           </div>
