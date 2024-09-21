@@ -1,33 +1,31 @@
 import * as perplexityAPI from './perplexityAPI';
 import * as exaAPI from './exaAPI';
 
-// Function to create a new traversal
+const CONTENT_MODEL = 'llama-3.1-sonar-large-128k-online';
+const SUGGESTION_MODEL = 'llama-3.1-sonar-small-128k-chat';
+
 export async function createTraversal(topic) {
   const node = { data: { id: topic } };
-  console.log(topic);
-  let suggestions = await exaAPI.getRelatedTopics(topic, 2);
-  console.log(suggestions);
 
   return {
-    nodes: [node],  //nodes in the graph
+    nodes: [node],
     edges: [],
     lastClicked: node,
-    history: [topic],                         // history of nodes in the graph
-    suggestions: suggestions
+    history: [topic],
+    suggestions: []
   };
 }
 
-// Function to update the page when a node is clicked
+
 export async function updatePage(clickedTopic, currentPage) {
   try {
-    const [content, sourcesAndLinks] = await Promise.all([
-      perplexityAPI.generateContent('mistral-7b-instruct', clickedTopic),
-      exaAPI.getSourcesAndLinks(clickedTopic)
+    const [content, sourcesAndLinks, suggestions] = await Promise.all([
+      perplexityAPI.generateContent(CONTENT_MODEL, clickedTopic),
+      exaAPI.getSourcesAndLinks(clickedTopic),
+      perplexityAPI.getKMostRelatedTopics(SUGGESTION_MODEL, 2, clickedTopic)
     ]);
 
     const lastNode = currentPage.lastClicked;
-    const suggestions = await exaAPI.getRelatedTopics(clickedTopic, 2);
-
     const newNode = { data: { id: clickedTopic } };
 
     let updatedNodes = [...currentPage.nodes, newNode];
@@ -46,6 +44,10 @@ export async function updatePage(clickedTopic, currentPage) {
       updatedHistory = [...currentPage.history, clickedTopic];
     }
 
+    // Remove old suggestion nodes and edges
+    updatedNodes = updatedNodes.filter(node => !currentPage.suggestions.includes(node.data.id));
+    updatedEdges = updatedEdges.filter(edge => !currentPage.suggestions.includes(edge.data.target));
+
     return {
       nodes: updatedNodes,
       edges: updatedEdges,
@@ -62,22 +64,4 @@ export async function updatePage(clickedTopic, currentPage) {
     console.error('Error updating graph:', error);
     throw error;
   }
-}
-
-// Helper function to parse strings (unchanged)
-async function parseString(input) {
-  const pattern = /^(\d+)\.\s*(.*)$/gm;
-  const matches = [];
-  let match;
-  while ((match = pattern.exec(input)) !== null) {
-    const text = match[2].trim();
-    matches.push(text);
-  }
-
-  return matches.length === 2 ? [matches[0], matches[1]] : null;
-}
-
-// Placeholder for saveToHistory function
-async function saveToHistory() {
-  // Implementation to be added
 }

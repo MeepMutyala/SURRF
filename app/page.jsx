@@ -11,12 +11,19 @@ import Collections from './components/Collections.jsx'; // Import the new Collec
 import SavePageModal from './components/savePageModal.jsx';
 import * as analysisOps from './utils/analysisOps.js';
 import AnalysisPanel from './components/AnalysisPanel.jsx';
-import Tab from './components/Tab';
-import { generateContent } from './utils/perplexityAPI';
-import { getRelatedTopics, getSourcesAndLinks } from './utils/exaAPI';
+import GraphTab from './components/GraphTab';
+// Remove the import for Tab
+import * as perplexityAPI from './utils/perplexityAPI';
+import * as exaAPI from './utils/exaAPI';
 import { setCache, getCache } from './utils/tabCache';
+import CenteredSearch from './components/CenteredSearch.jsx';
+import SidePanel from './components/SidePanel.jsx';
+import LoadingSpinner from './components/LoadingSpinner.jsx';
 
-const MODEL = 'mistral-7b-instruct';
+
+const CONTENT_MODEL = 'llama-3.1-sonar-large-128k-online';
+const SUGGESTION_MODEL = 'llama-3.1-sonar-small-128k-chat';
+
 
 export default function App() {
 
@@ -27,21 +34,23 @@ export default function App() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(false);
     const [searchTopic, setSearchTopic] = useState('');
+    const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+
     const [isAnalysisPanelOpen, setIsAnalysisPanelOpen] = useState(false);
     const [tabs, setTabs] = useState([]);
+    const [savedPages, setSavedPages] = useState([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     
-  // Page Setter- refresh the whole GRAPH using a new graph object, 
-  //
+    const [isInitialSearch, setIsInitialSearch] = useState(true);
     const [page, setPage] = useState({
-      nodes: [{ data: { id: "Start" } }],
+      nodes: [{ data: { id: 'surfing' } }],
       edges: [],
       clicked: null,
-      lastClicked: null,
-      history: [],
+      lastClicked: { data: { id: 'surfing' } },
+      history: ['surfing'],
       suggestions: []
     });
-    const [savedPages, setSavedPages] = useState([]);
 
   // Tab Setter and logic- explanatory
   //
@@ -111,46 +120,74 @@ export default function App() {
       }
     }, [isDeleteMode]);
 
-  // Search/Surf/Query/Explore/Research (keywords for ctrl-f) functionality
-  //
-    const handleSuggestionClick = useCallback((suggestion) => {
-      updatePageState(suggestion);
-    }, [updatePageState]);
-
-    const handleSearchSubmit = useCallback((event) => {
-      event.preventDefault();
-      if (searchTopic.trim() && searchTopic.trim() !== "Start") {
-        updatePageState(searchTopic, page.history.length === 0);
-      } else {
-        console.log("Please enter a valid topic to start.");
-      }
-    }, [searchTopic, page.history.length, updatePageState]);
-
     // on vertex click
-    const handleVertexClick = useCallback(async (topic) => {
+    const handleVertexClick = useCallback(async (topic, isSuggestion = false) => {
+      setSearchTopic(topic);
+      setIsLoading(true);
       try {
+        let newPage;
+        if (isSuggestion) {
+          newPage = await traversals.updatePage(topic, page);
+        } else {
+          newPage = { ...page };
+        }
+    
         const cachedContent = getCache(topic);
         if (cachedContent) {
           openTab(topic, cachedContent);
-          return;
+        } else {
+          const [content, sourcesAndLinks] = await Promise.all([
+            perplexityAPI.generateContent(CONTENT_MODEL, topic),
+            exaAPI.getSourcesAndLinks(topic)
+          ]);
+          const tabContent = { text: content, sources: sourcesAndLinks };
+          setCache(topic, tabContent);
+          openTab(topic, tabContent);
         }
     
-        const [content, sourcesAndLinks] = await Promise.all([
-          generateContent(MODEL, topic),
-          getSourcesAndLinks(topic)
-        ]);
-    
-        const tabContent = {
-          text: content,
-          sources: sourcesAndLinks
-        };
-    
-        setCache(topic, tabContent);
-        openTab(topic, tabContent);
+        // Generate new suggestions
+        const newSuggestions = await perplexityAPI.getKMostRelatedTopics(SUGGESTION_MODEL, 2, topic);
+        setPage({
+          ...newPage,
+          lastClicked: { data: { id: topic } },
+          suggestions: newSuggestions
+        });
+        setSearchTopic('');
       } catch (error) {
         console.error("Error updating page:", error);
+      } finally {
+        setIsLoading(false);
       }
-    }, []);
+    }, [page, openTab, setSearchTopic]);
+
+  // Search/Surf/Query/Explore/Research (keywords for ctrl-f) functionality
+  //
+  const handleSearchSubmit = useCallback(async (event) => {
+    event.preventDefault();
+    const topic = searchTopic.trim();
+    if (topic && topic !== "Start") {
+      setIsLoading(true);
+      try {
+        const [newTraversal, content, sourcesAndLinks, suggestions] = await Promise.all([
+          traversals.createTraversal(topic),
+          perplexityAPI.generateContent(CONTENT_MODEL, topic),
+          exaAPI.getSourcesAndLinks(topic),
+          perplexityAPI.getKMostRelatedTopics(SUGGESTION_MODEL, 2, topic)
+        ]);
+        const tabContent = { text: content, sources: sourcesAndLinks };
+        openTab(topic, tabContent);
+        setPage({
+          ...newTraversal,
+          suggestions: suggestions
+        });
+        setIsInitialSearch(false);
+      } catch (error) {
+        console.error("Error creating traversal:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  }, [searchTopic, openTab]);
 
   // to be implemented
   // const handleRefactor = useCallback(async () => {
@@ -182,10 +219,13 @@ export default function App() {
 
   const handleSavePageConfirm = useCallback((title, description) => {
     const pageData = { ...page, title, description };
-    setSavedPages(prevSavedPages => [...prevSavedPages, pageData]);
-    localStorage.setItem('savedPages', JSON.stringify([...savedPages, pageData]));
+    setSavedPages(prevSavedPages => {
+      const newSavedPages = [...prevSavedPages, pageData];
+      localStorage.setItem('savedPages', JSON.stringify(newSavedPages));
+      return newSavedPages;
+    });
     alert('Page saved successfully!');
-  }, [page, savedPages]);
+  }, [page]);
 
   const handlePageClick = useCallback((savedPage) => {
     setPage(savedPage);
@@ -235,108 +275,65 @@ export default function App() {
 
   return (
     <div id="wholePage" className="flex flex-col h-screen">
-      {!page.clicked && (
-      <div id="headerWrapper" className="h-1/4 flex justify-between items-center px-4">
-        <div className="w-1/2">
-          <PageHeader topic="Welcome to Surf!" />
-        </div>
-        <div className="w-1/2 flex justify-end items-center">
-          <form onSubmit={handleSearchSubmit} className="search-form mr-4">
-            <input 
-              type="text" 
-              value={searchTopic} 
-              onChange={(e) => setSearchTopic(e.target.value)} 
-              placeholder="Enter a topic" 
-              className="search-input"
-            />
-            <button type="submit" className="search-button">Submit</button>
-          </form>
-        </div>
-      </div>
-      )}
+      {isInitialSearch ? (
+        <CenteredSearch
+          onSubmit={handleSearchSubmit}
+          searchTopic={searchTopic}
+          setSearchTopic={setSearchTopic}
+        />
+      ) : (
+        <>
+          <div id="headerWrapper" className="flex justify-between items-center px-4">
+            <div className="w-1/2">
+              <PageHeader topic={page.lastClicked?.data.id || "Welcome to Surf!"} />
+            </div>
+            <div className="w-1/2 flex justify-end items-center">
+              <form onSubmit={handleSearchSubmit} className="search-form mr-4">
+                <input 
+                  type="text" 
+                  value={searchTopic} 
+                  onChange={(e) => setSearchTopic(e.target.value)} 
+                  placeholder="Enter a topic" 
+                  className="search-input"
+                />
+                <button type="submit" className="search-button">Submit</button>
+              </form>
+              <button onClick={() => setIsSidePanelOpen(!isSidePanelOpen)} className="toggle-panel-button">
+                {isSidePanelOpen ? '>' : '<'}
+              </button>
+            </div>
+          </div>
+          
+          <div className="flex flex-grow relative overflow-hidden">
+            <div className="w-full pr-4 flex flex-col items-center justify-center">
+            {isLoading ? (
+  <div className="w-full h-full flex items-center justify-center">
+    <LoadingSpinner />
+  </div>
+) : (
+  <Graph 
+  data={page} 
+  handleClick={handleVertexClick} 
+  isDarkMode={isDarkMode}
+  isDeleteMode={isDeleteMode}
+  onNodeDelete={handleNodeDelete}
+  tabs={tabs}
+  onCloseTab={closeTab}
+  searchTopic={searchTopic}
+  setSearchTopic={setSearchTopic}
+  handleSearchSubmit={handleSearchSubmit}
+nodeId={page.lastClicked?.data.id}
+/>
 
-      <div className="flex flex-grow relative overflow-hidden">
-        <div className="w-full pr-4 flex flex-col items-left">
-          {page.clicked && (
-            <div>
-            <ContentPage 
-              topic={page.clicked.nodeID} 
-              content={page.clicked.info} 
-            />
-            <form onSubmit={handleSearchSubmit} className="search-form mr-4">
-            <input 
-              type="text" 
-              value={searchTopic} 
-              onChange={(e) => setSearchTopic(e.target.value)} 
-              placeholder="Enter a topic" 
-              className="search-input"
-            />
-            <button type="submit" className="search-button">Submit</button>
-          </form>
+)}
             </div>
-          )}
-          <Graph 
-            data={page} 
-            handleClick={handleVertexClick} 
-            isDarkMode={isDarkMode}
-            isDeleteMode={isDeleteMode}
-            onNodeDelete={handleNodeDelete}
-          />          
-          <div className="tabs-container">
-            {tabs.map((tab, index) => (
-              <Tab
-                key={index}
-                title={tab.title}
-                content={tab.content}
-                onClose={() => closeTab(index)}
-              />
-            ))}
+            <SidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)}>
+              {/* SidePanel content remains the same */}
+            </SidePanel>
           </div>
-          
-          <div className="analysis-buttons">
-          <button onClick={handleToggleAnalysisPanel}>
-          {isAnalysisPanelOpen ? 'Close' : 'Analysis Options'}
-          </button>
-          {isAnalysisPanelOpen && (
-            <div>
-              <button onClick={handleGraphAnalysis}>Graph Analysis</button>
-              <button onClick={handleNodeAnalysis}>Node Analysis</button>
-              <button onClick={handleEdgeAnalysis}>Edge Analysis</button>
-               <button>Refactor Graph</button> {/*onClick={handleRefactor}*/}
-            </div>
-          )}
-          </div>
-          </div>
-        <div id="sideWrapper">
-          <SuggestionPanel 
-            suggestions={page.suggestions} 
-            onSuggestionClick={handleSuggestionClick} 
-          />
-          <button 
-            onClick={toggleDeleteMode}
-            className={`delete-mode-button ${isDeleteMode ? 'active' : ''}`}>
-            {isDeleteMode ? 'Exit Delete Mode' : 'Enter Delete Mode'}
-          </button>
-          <AnalysisPanel 
-            title={analysisResult.title}
-            content={analysisResult.content}
-          />
-          
-          <Collections 
-            savedPages={savedPages} 
-            onPageClick={handlePageClick}
-            onClearAll={clearAllPages}
-            onDeletePage={handleDeletePage}
-          />
-          <SavePageModal 
-            isOpen={isModalOpen} 
-            onClose={() => setIsModalOpen(false)} 
-            onSave={handleSavePageConfirm} 
-          />
-          <SaveSurfButton onSave={handleSavePage} />
-        </div>
-      </div>
-      <ToggleSwitch id="darkModeToggle" checked={isDarkMode} onChange={handleToggleChange} />
+          <ToggleSwitch id="darkModeToggle" checked={isDarkMode} onChange={handleToggleChange} />
+        </>
+      )}
     </div>
   );
 }
